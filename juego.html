@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Juego de Cuadrículas</title>
+    <style>
+      /* Estilo para hacer que el canvas cubra toda la página */
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <script>
+      // Obtener el canvas y el contexto
+      var canvas = document.getElementById("canvas");
+      var ctx = canvas.getContext("2d");
+
+      // Obtener el tamaño de la ventana del navegador
+      var windowWidth = window.innerWidth;
+      var windowHeight = window.innerHeight;
+
+      // Establecer el tamaño del canvas
+      canvas.width = windowWidth;
+      canvas.height = windowHeight;
+
+      // Tamaño de la cuadrícula
+      var gridSize = Math.min(windowWidth, windowHeight) / 100;
+
+      // Tamaño del tablero
+      var boardWidth = Math.floor(windowWidth / gridSize);
+      var boardHeight = Math.floor(windowHeight / gridSize);
+
+      // Crear una matriz para representar el laberinto
+      var maze = [];
+      for (var x = 0; x < boardWidth; x++) {
+        maze[x] = [];
+        for (var y = 0; y < boardHeight; y++) {
+          maze[x][y] = true; // Inicialmente, todas las paredes están presentes
+        }
+      }
+
+      // Función para crear el laberinto usando el algoritmo Recursive Backtracking
+      function createMaze() {
+        var stack = []; // Pila para hacer el backtracking
+        var visited = []; // Matriz para marcar las celdas visitadas
+        for (var x = 0; x < boardWidth; x++) {
+          visited[x] = [];
+          for (var y = 0; y < boardHeight; y++) {
+            visited[x][y] = false; // Inicialmente, ninguna celda ha sido visitada
+          }
+        }
+
+        // Función auxiliar para obtener las celdas vecinas de una celda dada
+        function getNeighbors(x, y) {
+          var neighbors = [];
+          if (x > 0) {
+            neighbors.push({ x: x - 1, y: y }); // Izquierda
+          }
+          if (x < boardWidth - 1) {
+            neighbors.push({ x: x + 1, y: y }); // Derecha
+          }
+          if (y > 0) {
+            neighbors.push({ x: x, y: y - 1 }); // Arriba
+          }
+          if (y < boardHeight - 1) {
+            neighbors.push({ x: x, y: y + 1 }); // Abajo
+          }
+          return neighbors;
+        }
+
+        // Función auxiliar para eliminar una pared entre dos celdas
+        function removeWall(x1, y1, x2, y2) {
+          if (y1 == y2) {
+            // Celdas adyacentes en la misma fila
+            if (x1 < x2) {
+              maze[x1 + 1][y1] = false;
+            } else {
+              maze[x1 - 1][y1] = false;
+            }
+          } else if (x1 == x2) {
+            // Celdas adyacentes en la misma columna
+            if (y1 < y2) {
+              maze[x1][y1 + 1] = false;
+            } else {
+              maze[x1][y1 - 1] = false;
+            }
+          }
+        }
+
+        // Empezar en una celda aleatoria
+        var startX = Math.floor(Math.random() * boardWidth);
+        var startY = Math.floor(Math.random() * boardHeight);
+        visited[startX][startY] = true;
+
+        // Mientras hayan celdas sin visitar
+        while (true) {
+          // Obtener las celdas vecinas de la celda actual
+          var neighbors = getNeighbors(startX, startY);
+
+          // Eliminar las paredes entre la celda actual y una celda vecina al azar
+          var unvisitedNeighbors = neighbors.filter(function (cell) {
+            return !visited[cell.x][cell.y];
+          });
+          if (unvisitedNeighbors.length > 0) {
+            // Hacer backtracking: agregar la celda actual a la pila
+            stack.push({ x: startX, y: startY });
+
+            // Elegir una celda vecina al azar
+            var next = unvisitedNeighbors[Math.floor(Math.random() * unvisitedNeighbors.length)];
+            removeWall(startX, startY, next.x, next.y);
+            startX = next.x;
+            startY = next.y;
+            visited[startX][startY] = true;
+          } else if (stack.length > 0) {
+            // No hay celdas vecinas sin visitar, hacer backtracking
+            var cell = stack.pop();
+            startX = cell.x;
+            startY = cell.y;
+          } else {
+            // Todas las celdas han sido visitadas
+            break;
+          }
+        }
+
+        // Marcar el inicio y la salida
+        maze[0][0] = false;
+        maze[boardWidth - 1][boardHeight - 1] = false;
+      }
+
+      // Función para dibujar el laberinto
+      function drawMaze() {
+        // Limpiar el canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Dibujar las paredes del laberinto
+        ctx.strokeStyle = "black";
+        for (var x = 0; x < boardWidth; x++) {
+          for (var y = 0; y < boardHeight; y++) {
+            if (maze[x][y]) {
+              ctx.strokeRect(x * gridSize, y * gridSize, gridSize, gridSize);
+            } else if (x == 0 && y == 0) {
+              ctx.fillStyle = "blue"; // Inicio
+              ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize);
+            } else if (x == boardWidth - 1 && y == boardHeight - 1) {
+              ctx.fillStyle = "blue"; // Salida
+              ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize);
+            }
+          }
+        }
+      }
+
+      // Crear el laberinto y dibujarlo
+      createMaze();
+      drawMaze();
+
+      // Posición inicial del jugador
+      var playerX = 0;
+      var playerY = 0;
+
+      // Manejar el movimiento del jugador con las flechas del teclado
+      document.addEventListener("keydown", function (event) {
+        var dx = 0;
+        var dy = 0;
+        switch (event.keyCode) {
+          case 37: // izquierda
+            dx = -1;
+            break;
+          case 38: // arriba
+            dy = -1;
+            break;
+          case 39: // derecha
+            dx = 1;
+            break;
+          case 40: // abajo
+            dy = 1;
+            break;
+        }
+        var newPlayerX = playerX + dx;
+        var newPlayerY = playerY + dy;
+        if (
+          newPlayerX >= 0 &&
+          newPlayerX < boardWidth &&
+          newPlayerY >= 0 &&
+          newPlayerY < boardHeight &&
+          !maze[newPlayerX][newPlayerY] &&
+          ((newPlayerX == 0 && newPlayerY == 0) || (newPlayerX == boardWidth - 1 && newPlayerY == boardHeight - 1))
+        ) {
+          playerX = newPlayerX;
+          playerY = newPlayerY;
+          drawMaze();
+          // Dibujar al jugador
+          ctx.fillStyle = "red";
+          ctx.fillRect(playerX * gridSize, playerY * gridSize, gridSize, gridSize);
+        }
+      });
+    </script>
+  </body>
+</html>
